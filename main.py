@@ -18,59 +18,29 @@ from PIL import Image, ImageOps
 from scipy.ndimage.interpolation import shift
 from skimage.filters import threshold_otsu
 from ast import literal_eval
+
 # Set seed
 ia.seed(1)
 
-TRAIN_DATA = 'data/train'
-VALID_DATA = 'data/val'
-print(f'Train data folder: {os.listdir(TRAIN_DATA)}')
-print(f'Validation data folder: {os.listdir(VALID_DATA)}')
-
-# Print random images
-# images, labels = [], []
-#
-# for folder in os.listdir(TRAIN_DATA):
-#     for image in os.listdir(TRAIN_DATA + '/' + folder):
-#         images.append(os.path.join(TRAIN_DATA, folder, image))
-#         labels.append(folder)
-#
-# plt.figure(1, figsize=(15, 9))
-# plt.axis('off')
-# n = 0
-#
-# for i in range(36):
-#     n += 1
-#     random_index = random.choice(range(len(images)))
-#     random_label = labels[random_index]
-#     random_img = images[random_index]
-#     img = cv2.imread(random_img, cv2.IMREAD_GRAYSCALE)
-#     plt.subplot(6, 6, n)
-#     plt.axis('off')
-#     plt.imshow(img, cmap=plt.get_cmap('gray'))
-#     plt.title(random_label)
-#
-# plt.show()
-
 # Create new directory to store cleaned images (copy raw data)
-CLEAN_DATA_FOLDER = 'data_clean'
-TRAIN_DATA = f'{CLEAN_DATA_FOLDER}/train'
-VALID_DATA = f'{CLEAN_DATA_FOLDER}/val'
+CLEAN_DATA_PATH = 'data_clean'
+TRAIN_PATH = f'{CLEAN_DATA_PATH}/train'
+VALID_PATH = f'{CLEAN_DATA_PATH}/val'
+DATA_PATHS = [TRAIN_PATH, VALID_PATH]
 
-if os.path.exists(CLEAN_DATA_FOLDER):
-    shutil.rmtree(CLEAN_DATA_FOLDER)
-    print("removed folder")
+# Remove data_clean folder is exists
+if os.path.exists(CLEAN_DATA_PATH):
+    shutil.rmtree(CLEAN_DATA_PATH)
+    print("Removed data_clean folder")
 
-try:
-    shutil.copytree('data', CLEAN_DATA_FOLDER, dirs_exist_ok=False)
-    print('Created new folder')
-except:
-    print('Folder already exists')
+# Create new directory for cleaned data
+shutil.copytree('data', CLEAN_DATA_PATH)
+print('Created data_clean folder')
 
 
-# Rename files in train and val sets (in new clean folder) for easier tracking
-data_types = [TRAIN_DATA, VALID_DATA]
-
-for data_type in data_types:
+# Rename images files in train and val sets
+# def rename_data():
+for data_type in DATA_PATHS:
     for folder in os.listdir(data_type):
         for index, file in enumerate(os.listdir(data_type + '/' + folder)):
             if file == '.DS_Store':
@@ -80,7 +50,8 @@ for data_type in data_types:
             data_type_name = data_type.split('/')[-1]
             os.rename(os.path.join(data_type, folder, file), os.path.join(data_type, folder,
                                                                           ''.join(
-                                                                              [str(data_type_name), '_', str(folder),
+                                                                              [str(data_type_name), '_',
+                                                                               str(folder),
                                                                                '_', str(index), '.png'])))
 
 
@@ -89,7 +60,7 @@ def show_images(label, num):
     images, labels, filenames = [], [], []
 
     # Add train data images
-    data_folders = [TRAIN_DATA, VALID_DATA]
+    data_folders = [TRAIN_PATH, VALID_PATH]
 
     for data_folder in data_folders:
         for image in os.listdir(data_folder + '/' + label):
@@ -121,10 +92,11 @@ def show_images(label, num):
 # Setup function to add file into list for deleting later
 deleted_imgs = []
 
+
 def delete_file(data_type, img_name):
     global deleted_imgs
     label = img_name.split('_')[0]
-    file_path = f'{CLEAN_DATA_FOLDER}/{data_type}/{label}/{data_type}_{img_name}.png'
+    file_path = f'{CLEAN_DATA_PATH}/{data_type}/{label}/{data_type}_{img_name}.png'
 
     # Add file path to list to track deleted items
     deleted_imgs = deleted_imgs + [file_path]
@@ -139,6 +111,7 @@ def delete_file(data_type, img_name):
     except:
         pass
 
+
 # Setup function to move file into another folder
 # Datatype = 'train' or 'valid', Imgname (without .png) e.g. 'i_123'
 # Arguments should be in this format e.g. 'train', 'i_123', 'iii'
@@ -146,20 +119,15 @@ def delete_file(data_type, img_name):
 
 def move_file(data_type, img_name, new_label):
     old_label = img_name.split('_')[0]
-    source = f'{CLEAN_DATA_FOLDER}/{data_type}/{old_label}/{img_name}.png'
-    dest = f'{CLEAN_DATA_FOLDER}/{data_type}/{new_label}/{img_name}.png'
+    source = f'{CLEAN_DATA_PATH}/{data_type}/{old_label}/{data_type}_{img_name}.png'
+    dest = f'{CLEAN_DATA_PATH}/{data_type}/{new_label}/{data_type}_{img_name}.png'
 
     try:
         shutil.move(source, dest)
-        print(f'Successfully moved {source}')
+        print(f'Successfully moved {source} to {new_label}')
     except:
         pass
 
-
-# Files to move
-# move_file('train', 'i_70', 'ii')
-# move_file('train', 'i_98', 'ii')
-# move_file('train', 'i_123', 'iii')
 
 # Add images to list for deletion
 delete_df = pd.read_csv("delete.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
@@ -172,3 +140,12 @@ for col in delete_df.columns:
 
 print(len(deleted_imgs))
 print(deleted_imgs)
+
+# Files to move
+move_df = pd.read_csv("move.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
+                                              'iv': literal_eval, 'v': literal_eval, 'vi': literal_eval,
+                                              'vii': literal_eval, 'viii': literal_eval, 'ix': literal_eval,
+                                              'x': literal_eval})
+for col in move_df.columns:
+    for name in move_df[col][0]:
+        move_file('train', name, col)
