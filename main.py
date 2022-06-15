@@ -39,113 +39,101 @@ print('Created data_clean folder')
 
 
 # Rename images files in train and val sets
-# def rename_data():
-for data_type in DATA_PATHS:
-    for folder in os.listdir(data_type):
-        for index, file in enumerate(os.listdir(data_type + '/' + folder)):
-            if file == '.DS_Store':
-                os.remove(os.path.join(data_type, folder, file))
-                print("deleted ds_store")
-                continue
-            data_type_name = data_type.split('/')[-1]
-            os.rename(os.path.join(data_type, folder, file), os.path.join(data_type, folder,
-                                                                          ''.join(
-                                                                              [str(data_type_name), '_',
-                                                                               str(folder),
-                                                                               '_', str(index), '.png'])))
+def rename_data():
+    for data_type in DATA_PATHS:
+        for folder in os.listdir(data_type):
+            for index, filename in enumerate(os.listdir(f'{data_type}/{folder}')):
+                if filename == '.DS_Store':
+                    os.remove(os.path.join(data_type, folder, filename))
+                    print("Deleted .DS_Store file")
+                    continue
+                current_name = os.path.join(data_type, folder, filename)
+                new_name = os.path.join(data_type, folder, f"{data_type.split('/')[-1]}_{folder}_{index}.png")
+                os.rename(current_name, new_name)
 
 
-# Setup function to display random images based on a label (for manual review) - Includes both train and valid
-def show_images(label, num):
-    images, labels, filenames = [], [], []
+# Delete images from data
+def delete_files():
+    delete_df = pd.read_csv("delete.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
+                                                      'iv': literal_eval, 'v': literal_eval, 'vi': literal_eval,
+                                                      'vii': literal_eval, 'viii': literal_eval, 'ix': literal_eval,
+                                                      'x': literal_eval})
+    deleted_imgs = []
+    for label in delete_df.columns:
+        for index in delete_df[label][0]:
+            path = f'{TRAIN_PATH}/{label}/train_{label}_{index}.png'
+            try:
+                os.remove(path)
+                print(f'Successfully deleted {path}')
+            except:
+                print(f'Failed to delete {path}')
+            deleted_imgs.append(path)
 
-    # Add train data images
-    data_folders = [TRAIN_PATH, VALID_PATH]
-
-    for data_folder in data_folders:
-        for image in os.listdir(data_folder + '/' + label):
-            images.append(os.path.join(data_folder, label, image))
-            filenames.append(f'{image}')
-
-    plt.figure(1, figsize=(18, 11))
-    plt.axis('off')
-
-    n = 0
-    for i in range(num):
-        n += 1
-        random_index = random.choice(range(len(images)))
-        random_filename = filenames[random_index]
-        random_img = images[random_index]
-        img = cv2.imread(random_img, cv2.IMREAD_GRAYSCALE)
-        plt.subplot(int(np.sqrt(num)), int(np.sqrt(num)), n)
-        plt.axis('off')
-        plt.imshow(img, cmap=plt.get_cmap('gray'))
-        random_data_type = random_filename.split('/')[0]
-        random_img_name = random_filename.split('/')[-1].split('.')[0]
-        plt.title(f'{random_img_name}')
-
-    plt.show()
+    print(f'Deleted {len(deleted_imgs)} files')
+    # print(deleted_imgs)
 
 
-# show_images('iii', 25)
-
-# Setup function to add file into list for deleting later
-deleted_imgs = []
-
-
-def delete_file(data_type, img_name):
-    global deleted_imgs
-    label = img_name.split('_')[0]
-    file_path = f'{CLEAN_DATA_PATH}/{data_type}/{label}/{data_type}_{img_name}.png'
-
-    # Add file path to list to track deleted items
-    deleted_imgs = deleted_imgs + [file_path]
-
-    # Remove duplicates in list
-    deleted_imgs = list(dict.fromkeys(deleted_imgs))
-
-    # Delete file
-    try:
-        os.remove(file_path)
-        print(f'Successfully deleted {file_path}')
-    except:
-        pass
-
-
-# Setup function to move file into another folder
-# Datatype = 'train' or 'valid', Imgname (without .png) e.g. 'i_123'
-# Arguments should be in this format e.g. 'train', 'i_123', 'iii'
-
-
-def move_file(data_type, img_name, new_label):
-    old_label = img_name.split('_')[0]
-    source = f'{CLEAN_DATA_PATH}/{data_type}/{old_label}/{data_type}_{img_name}.png'
-    dest = f'{CLEAN_DATA_PATH}/{data_type}/{new_label}/{data_type}_{img_name}.png'
-
-    try:
-        shutil.move(source, dest)
-        print(f'Successfully moved {source} to {new_label}')
-    except:
-        pass
-
-
-# Add images to list for deletion
-delete_df = pd.read_csv("delete.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
+# Files to move
+def move_files():
+    move_df = pd.read_csv("move.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
                                                   'iv': literal_eval, 'v': literal_eval, 'vi': literal_eval,
                                                   'vii': literal_eval, 'viii': literal_eval, 'ix': literal_eval,
                                                   'x': literal_eval})
-for col in delete_df.columns:
-    for index in delete_df[col][0]:
-        delete_file('train', f'{col}_{index}')
+    for label in move_df.columns:  # e.g. label: 'ii'
+        for name in move_df[label][0]:  # e.g. name: 'iv_33'
+            old_label = name.split('_')[0]
+            source = f"{TRAIN_PATH}/{old_label}/train_{name}.png"
+            dest = f'{TRAIN_PATH}/{label}/train_{name}.png'
+            try:
+                shutil.move(source, dest)
+                print(f'Successfully moved {source} to {label}')
+            except:
+                print(f'Failed to move {source} to {label}')
 
-print(len(deleted_imgs))
-print(deleted_imgs)
 
-# Files to move
-move_df = pd.read_csv("move.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
-                                              'iv': literal_eval, 'v': literal_eval, 'vi': literal_eval,
-                                              'vii': literal_eval, 'viii': literal_eval, 'ix': literal_eval,
-                                              'x': literal_eval})
-for col in move_df.columns:
-    for name in move_df[col][0]:
-        move_file('train', name, col)
+# Function to get 1 random image (from training set) and compare with transformed image
+def show_single_transform(transform):
+    images, filenames = [], []
+
+    for folder in os.listdir(TRAIN_PATH):
+        for image in os.listdir(TRAIN_PATH + '/' + folder):
+            images.append(os.path.join(TRAIN_PATH, folder, image))
+            filenames.append(f'{image}')
+
+    random_index = random.choice(range(len(images)))
+    random_filename = filenames[random_index]
+    random_img = images[random_index]
+
+    img_original = Image.open(random_img)
+    img_original = ImageOps.grayscale(img_original)  # applying greyscale method
+
+    # Execute transformation
+    try:
+        img_transformed = transform(img_original)
+    except:
+        img_transformed = transform(images=np.asarray(img_original))
+    print(f'Transformation successful')
+
+    # Display images side by side
+    fig = plt.figure(figsize=(14, 8))
+
+    # show original image
+    fig.add_subplot(221)
+    plt.title('Original Image')
+    plt.axis('off')
+    plt.imshow(img_original, cmap=plt.get_cmap('gray'))
+    fig.add_subplot(222)
+    plt.title('Transformed Image')
+    plt.axis('off')
+    plt.imshow(img_transformed, cmap=plt.get_cmap('gray'))
+    plt.show()
+
+
+if __name__ == "__main__":
+    # Pre-processing
+    rename_data()
+    delete_files()
+    move_files()
+
+    # Augmentation
+
