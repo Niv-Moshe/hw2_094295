@@ -73,7 +73,7 @@ def delete_files():
     # print(deleted_imgs)
 
 
-# Files to move
+# Move images that are mislabeled
 def move_files():
     move_df = pd.read_csv("move.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
                                                   'iv': literal_eval, 'v': literal_eval, 'vi': literal_eval,
