@@ -1,24 +1,15 @@
-import torch  # root package
-from torch.utils.data import Dataset, DataLoader  # dataset representation and loading
-from torchvision import datasets, models  # vision datasets,architectures & transforms
-import torchvision.transforms as T  # composable transforms
 import imgaug as ia
-from imgaug import augmenters as iaa
 import os
 from pathlib import Path
 from glob import glob
-from collections import Counter
 import random
 import shutil
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import cv2
 from PIL import Image, ImageOps
-from scipy.ndimage.interpolation import shift
-from skimage.filters import threshold_otsu
 from ast import literal_eval
-
+from sklearn.model_selection import train_test_split
+from transformations import transform_no_flip, transform_horizontal, transform_vertical, transform_horizontal_vertical
 # Set seed
 ia.seed(1)
 
@@ -36,6 +27,11 @@ if os.path.exists(CLEAN_DATA_PATH):
 # Create new directory for cleaned data
 shutil.copytree('data', CLEAN_DATA_PATH)
 print('Created data_clean folder')
+
+# Remove data_augmented folder is exists
+if os.path.exists('data_augmented'):
+    shutil.rmtree('data_augmented')
+    print("Removed data_augmented folder")
 
 
 # Rename images files in train and val sets
@@ -91,42 +87,50 @@ def move_files():
                 print(f'Failed to move {source} to {label}')
 
 
-# Function to get 1 random image (from training set) and compare with transformed image
-def show_single_transform(transform):
-    images, filenames = [], []
+# Merging train and val to same folder, augmenting and new train val split
+def augmentation_and_split(label, transformation, max_size=1000, train_size=800):
+    # creating a temporary folder for all (train+val) the clean images of label
+    temp_folder = f'data_augmented/temp_{label}'
+    Path(temp_folder).mkdir(parents=True, exist_ok=True)
+    # merging (copying) the clean images to a temporary folder
+    for path in [TRAIN_PATH, VALID_PATH]:
+        label_folder = f'{path}/{label}'
+        for image in os.listdir(label_folder):
+            shutil.copy(f'{label_folder}/{image}', temp_folder)
+    print(f'Temp folder created: {temp_folder}')
 
-    for folder in os.listdir(TRAIN_PATH):
-        for image in os.listdir(TRAIN_PATH + '/' + folder):
-            images.append(os.path.join(TRAIN_PATH, folder, image))
-            filenames.append(f'{image}')
+    # train and val paths of augmented images for label
+    augmented_label_folder_train = f'data_augmented/train/{label}'
+    augmented_label_folder_val = f'data_augmented/val/{label}'
+    # creating the folders
+    Path(augmented_label_folder_train).mkdir(parents=True, exist_ok=True)
+    Path(augmented_label_folder_val).mkdir(parents=True, exist_ok=True)
 
-    random_index = random.choice(range(len(images)))
-    random_filename = filenames[random_index]
-    random_img = images[random_index]
+    # number of images to generate to reach total_size=1000 images
+    images_to_generate_count = max_size - len(os.listdir(temp_folder))
+    # all clean images paths from temp folder
+    clean_images = glob(os.path.join(temp_folder, "*.png"))
+    print(f'Images to generate {images_to_generate_count}')
+    for i in range(images_to_generate_count):
+        index = random.choice(range(len(clean_images)))
+        image = Image.open(clean_images[index])
+        image = ImageOps.grayscale(image)
+        # transforming
+        image_transformed = transformation(images=np.asarray(image))
+        image_transformed = Image.fromarray(image_transformed)
+        image_transformed.save(f'{temp_folder}/random{i}_{clean_images[index].split("/")[-1]}', 'PNG')
 
-    img_original = Image.open(random_img)
-    img_original = ImageOps.grayscale(img_original)  # applying greyscale method
+    # splitting to train and val
+    print(f'Number of images: {len(os.listdir(temp_folder))}')
+    train, val = train_test_split(os.listdir(temp_folder), shuffle=True, train_size=train_size)
+    # copying to train and val before deleting temp_folder
+    for train_file_path in train:
+        shutil.copy(os.path.join(temp_folder, train_file_path), augmented_label_folder_train)
+    for val_file_path in val:
+        shutil.copy(os.path.join(temp_folder, val_file_path), augmented_label_folder_val)
 
-    # Execute transformation
-    try:
-        img_transformed = transform(img_original)
-    except:
-        img_transformed = transform(images=np.asarray(img_original))
-    print(f'Transformation successful')
-
-    # Display images side by side
-    fig = plt.figure(figsize=(14, 8))
-
-    # show original image
-    fig.add_subplot(221)
-    plt.title('Original Image')
-    plt.axis('off')
-    plt.imshow(img_original, cmap=plt.get_cmap('gray'))
-    fig.add_subplot(222)
-    plt.title('Transformed Image')
-    plt.axis('off')
-    plt.imshow(img_transformed, cmap=plt.get_cmap('gray'))
-    plt.show()
+    # deleting temp_folder
+    shutil.rmtree(temp_folder, ignore_errors=True)
 
 
 if __name__ == "__main__":
@@ -136,4 +140,22 @@ if __name__ == "__main__":
     move_files()
 
     # Augmentation
+    labels = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
+    labels_no_flip = ['iv', 'vi', 'vii', 'viii']
+    labels_horizontal = ['v']
+    labels_vertical = ['ix']
+    labels_horizontal_vertical = ['i', 'ii', 'iii', 'x']
+    # executing transformations
+    for label in labels:
+        if label in labels_no_flip:
+            augmentation_and_split(label=label, transformation=transform_no_flip)
+
+        if label in labels_horizontal:
+            augmentation_and_split(label=label, transformation=transform_horizontal)
+
+        if label in labels_vertical:
+            augmentation_and_split(label=label, transformation=transform_vertical)
+
+        if label in labels_horizontal_vertical:
+            augmentation_and_split(label=label, transformation=transform_horizontal_vertical)
 
