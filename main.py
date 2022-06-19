@@ -13,7 +13,7 @@ from transformations import transform_no_flip, transform_horizontal, transform_v
 # Set seed
 ia.seed(1)
 
-# Create new directory to store cleaned images (copy raw data)
+# New folder for clean data
 CLEAN_DATA_PATH = 'data_clean'
 TRAIN_PATH = f'{CLEAN_DATA_PATH}/train'
 VALID_PATH = f'{CLEAN_DATA_PATH}/val'
@@ -79,9 +79,9 @@ def move_files():
         for name in move_df[label][0]:  # e.g. name: 'iv_33'
             old_label = name.split('_')[0]
             source = f"{TRAIN_PATH}/{old_label}/train_{name}.png"
-            dest = f'{TRAIN_PATH}/{label}/train_{name}.png'
+            destination = f'{TRAIN_PATH}/{label}/train_{name}.png'
             try:
-                shutil.move(source, dest)
+                shutil.move(source, destination)
                 print(f'Successfully moved {source} to {label}')
             except:
                 print(f'Failed to move {source} to {label}')
@@ -121,7 +121,7 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
         image_transformed.save(f'{temp_folder}/random{i}_{clean_images[index].split("/")[-1]}', 'PNG')
 
     # splitting to train and val
-    print(f'Number of images: {len(os.listdir(temp_folder))}')
+    print(f'Total images: {len(os.listdir(temp_folder))}')
     train, val = train_test_split(os.listdir(temp_folder), shuffle=True, train_size=train_size)
     # copying to train and val before deleting temp_folder
     for train_file_path in train:
