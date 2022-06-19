@@ -32,6 +32,7 @@ print('Created data_clean folder')
 if os.path.exists('data_augmented'):
     shutil.rmtree('data_augmented')
     print("Removed data_augmented folder")
+print()
 
 
 # Rename images files in train and val sets
@@ -135,6 +136,7 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
 
 if __name__ == "__main__":
     # Pre-processing
+    print('Renaming data')
     rename_data()
     delete_files()
     move_files()
