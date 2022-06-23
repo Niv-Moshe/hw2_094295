@@ -9,6 +9,7 @@ import pandas as pd
 from PIL import Image, ImageOps
 from ast import literal_eval
 from sklearn.model_selection import train_test_split
+from collections import Counter
 from transformations import transform_no_flip, transform_horizontal, transform_vertical, transform_horizontal_vertical
 # Set seed
 ia.seed(1)
@@ -19,24 +20,51 @@ TRAIN_PATH = f'{CLEAN_DATA_PATH}/train'
 VALID_PATH = f'{CLEAN_DATA_PATH}/val'
 DATA_PATHS = [TRAIN_PATH, VALID_PATH]
 
-# Remove data_clean folder is exists
+# Delete data_clean folder is exists
 if os.path.exists(CLEAN_DATA_PATH):
     shutil.rmtree(CLEAN_DATA_PATH)
-    print("Removed data_clean folder")
+    print("Deleted data_clean folder")
 
 # Create new directory for cleaned data
 shutil.copytree('data', CLEAN_DATA_PATH)
 print('Created data_clean folder')
 
-# Remove data_augmented folder is exists
+# Delete data_augmented folder is exists
 if os.path.exists('data_augmented'):
     shutil.rmtree('data_augmented')
-    print("Removed data_augmented folder")
+    print("Deleted data_augmented folder")
 print()
+
+
+# Exploring the data
+def exploration():
+    print('Exploring the data:')
+    # number of images
+    train_len = len([os.path.join(path, filename) for path, _, filenames in os.walk(TRAIN_PATH)
+                     for filename in filenames])
+    print(f'Train length: {train_len}')
+    valid_len = len([os.path.join(path, filename) for path, _, filenames in os.walk(VALID_PATH)
+                     for filename in filenames])
+    print(f'Valid length: {valid_len}')
+
+    # images dimensions
+    all_dimensions = []
+    for folder in os.listdir(TRAIN_PATH):
+        for filename in os.listdir(f'{TRAIN_PATH}/{folder}'):
+            if filename == '.DS_Store':
+                print('Skipped .DS_Store file')
+                continue
+            path = os.path.join(TRAIN_PATH, folder, filename)
+            image = Image.open(path)
+            image = ImageOps.grayscale(image)
+            all_dimensions.append(np.asarray(image).shape)
+    print(f'Dimensions count: {Counter(all_dimensions).most_common()}')
+    print()
 
 
 # Rename images files in train and val sets
 def rename_data():
+    print('Renaming data:')
     for data_type in DATA_PATHS:
         for folder in os.listdir(data_type):
             for index, filename in enumerate(os.listdir(f'{data_type}/{folder}')):
@@ -47,10 +75,12 @@ def rename_data():
                 current_name = os.path.join(data_type, folder, filename)
                 new_name = os.path.join(data_type, folder, f"{data_type.split('/')[-1]}_{folder}_{index}.png")
                 os.rename(current_name, new_name)
+    print()
 
 
 # Delete images from data
 def delete_files():
+    print('Deleting invalid samples:')
     delete_df = pd.read_csv("delete.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
                                                       'iv': literal_eval, 'v': literal_eval, 'vi': literal_eval,
                                                       'vii': literal_eval, 'viii': literal_eval, 'ix': literal_eval,
@@ -61,21 +91,24 @@ def delete_files():
             path = f'{TRAIN_PATH}/{label}/train_{label}_{index}.png'
             try:
                 os.remove(path)
-                print(f'Successfully deleted {path}')
+                print(f'Deleted {path}')
             except:
-                print(f'Failed to delete {path}')
+                print(f'Error in deleting {path}')
             deleted_imgs.append(path)
 
     print(f'Deleted {len(deleted_imgs)} files')
     # print(deleted_imgs)
+    print()
 
 
 # Move images that are mislabeled
 def move_files():
+    print('Moving wrong labeled samples to correct labels:')
     move_df = pd.read_csv("move.csv", converters={'i': literal_eval, 'ii': literal_eval, 'iii': literal_eval,
                                                   'iv': literal_eval, 'v': literal_eval, 'vi': literal_eval,
                                                   'vii': literal_eval, 'viii': literal_eval, 'ix': literal_eval,
                                                   'x': literal_eval})
+    count_moved = 0
     for label in move_df.columns:  # e.g. label: 'ii'
         for name in move_df[label][0]:  # e.g. name: 'iv_33'
             old_label = name.split('_')[0]
@@ -83,13 +116,17 @@ def move_files():
             destination = f'{TRAIN_PATH}/{label}/train_{name}.png'
             try:
                 shutil.move(source, destination)
-                print(f'Successfully moved {source} to {label}')
+                print(f'Moved {source} to {label}')
+                count_moved += 1
             except:
-                print(f'Failed to move {source} to {label}')
+                print(f'Error in moving {source} to {label}')
+    print(f'Moved {count_moved} files')
+    print()
 
 
 # Merging train and val to same folder, augmenting and new train val split
 def augmentation_and_split(label, transformation, max_size=1000, train_size=800):
+    print(f'Generating images for label={label}:')
     # creating a temporary folder for all (train+val) the clean images of label
     temp_folder = f'data_augmented/temp_{label}'
     Path(temp_folder).mkdir(parents=True, exist_ok=True)
@@ -98,7 +135,6 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
         label_folder = f'{path}/{label}'
         for image in os.listdir(label_folder):
             shutil.copy(f'{label_folder}/{image}', temp_folder)
-    print(f'Temp folder created: {temp_folder}')
 
     # train and val paths of augmented images for label
     augmented_label_folder_train = f'data_augmented/train/{label}'
@@ -122,7 +158,7 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
         image_transformed.save(f'{temp_folder}/random{i}_{clean_images[index].split("/")[-1]}', 'PNG')
 
     # splitting to train and val
-    print(f'Total images: {len(os.listdir(temp_folder))}')
+    print(f'Total images {len(os.listdir(temp_folder))}')
     train, val = train_test_split(os.listdir(temp_folder), shuffle=True, train_size=train_size)
     # copying to train and val before deleting temp_folder
     for train_file_path in train:
@@ -132,11 +168,13 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
 
     # deleting temp_folder
     shutil.rmtree(temp_folder, ignore_errors=True)
+    print()
 
 
 if __name__ == "__main__":
+    # Exploration
+    exploration()
     # Pre-processing
-    print('Renaming data')
     rename_data()
     delete_files()
     move_files()
