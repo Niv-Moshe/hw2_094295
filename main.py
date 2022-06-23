@@ -97,7 +97,7 @@ def delete_files():
             deleted_imgs.append(path)
 
     print(f'Deleted {len(deleted_imgs)} files')
-    # print(deleted_imgs)
+    # print(f'All deleted images: {deleted_imgs}')
     print()
 
 
