@@ -165,7 +165,7 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
 
     # splitting to train and val
     print(f'Total images {len(os.listdir(temp_folder))}')
-    train, val = train_test_split(os.listdir(temp_folder), shuffle=True, train_size=train_size)
+    train, val = train_test_split(os.listdir(temp_folder), random_state=1, shuffle=True, train_size=train_size)
     # copying to train and val before deleting temp_folder
     for train_file_path in train:
         shutil.copy(os.path.join(temp_folder, train_file_path), augmented_label_folder_train)
@@ -211,14 +211,15 @@ def make_confusion_matrix():
             # statistics
             running_loss += loss.item() * inputs.size(0)
             running_corrects += torch.sum(preds == labels.data)
+
         # Build confusion matrix
         cf_matrix = confusion_matrix(labels.data.detach().cpu(), preds.detach().cpu())
         df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in class_names],
                              columns=[i for i in class_names])
-
         plt.figure(figsize=(12, 7))
         sn.heatmap(df_cm, annot=True)
         plt.savefig('confusion_matrix.png')
+
     epoch_loss = running_loss / len_val
     epoch_acc = running_corrects.double() / len_val
     print(f'Val acc: {epoch_acc}, Val loss: {epoch_loss}')
