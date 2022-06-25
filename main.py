@@ -9,7 +9,14 @@ import pandas as pd
 from PIL import Image, ImageOps
 from ast import literal_eval
 from sklearn.model_selection import train_test_split
-from collections import Counter
+from collections import Counter, OrderedDict
+from torchvision import models, transforms, datasets
+import torch
+import torch.nn as nn
+from tqdm import tqdm
+from sklearn.metrics import confusion_matrix
+# import seaborn as sn
+import pandas as pd
 from transformations import transform_no_flip, transform_horizontal, transform_vertical, transform_horizontal_vertical
 # Set seed
 ia.seed(1)
@@ -171,7 +178,56 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
     print()
 
 
+def make_confusion_matrix():
+    val_dir = os.path.join("data", "val")
+    BATCH_SIZE = 16
+    # Resize the samples and transform them into tensors
+    data_transforms = transforms.Compose([transforms.Resize([64, 64]), transforms.ToTensor()])
+    val_dataset = datasets.ImageFolder(val_dir, data_transforms)
+    len_val = len(val_dataset)
+    class_names = val_dataset.classes
+    NUM_CLASSES = len(class_names)
+    print("The classes are: ", class_names)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=len_val, shuffle=True)
+    # Load
+    model_ft = models.resnet50(pretrained=False)
+    num_ftrs = model_ft.fc.in_features
+    model_ft.fc = nn.Linear(num_ftrs, NUM_CLASSES)
+    model_ft = model_ft.to(device=device)
+    model_ft.load_state_dict(torch.load("trained_model.pt"))
+    model_ft.eval()
+
+    # evaluating on validation the trained model
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    criterion = nn.CrossEntropyLoss()
+    running_loss = 0.0
+    running_corrects = 0
+    for inputs, labels in tqdm(val_dataloader):
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+        with torch.no_grad():
+            outputs = model_ft(inputs)
+            _, preds = torch.max(outputs, 1)
+            loss = criterion(outputs, labels)
+            # statistics
+            running_loss += loss.item() * inputs.size(0)
+            running_corrects += torch.sum(preds == labels.data)
+        # # Build confusion matrix
+        # cf_matrix = confusion_matrix(y_true, y_pred)
+        # df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in classes],
+        #                      columns=[i for i in classes])
+        # plt.figure(figsize=(12, 7))
+        # sn.heatmap(df_cm, annot=True)
+        # plt.savefig('output.png')
+    epoch_loss = running_loss / len_val
+    epoch_acc = running_corrects.double() / len_val
+    print(f'Val acc: {epoch_acc}, Val loss: {epoch_loss}')
+    pass
+
+
 if __name__ == "__main__":
+    # make_confusion_matrix()
     # Exploration
     exploration()
     # Pre-processing
