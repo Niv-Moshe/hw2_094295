@@ -1,4 +1,6 @@
+import imgaug as ia
 from imgaug import augmenters as iaa
+ia.seed(1)
 
 resize_dim = 400
 flip_prob = 0.5
@@ -6,7 +8,7 @@ affine_transformation = dict(scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
                              translate_percent={"x": (-0.06, 0.06), "y": (-0.06, 0.06)},
                              rotate=(-20, 20),
                              shear=(-3, 3),
-                             cval=255)  # filling with white pixels
+                             cval=255)  # constant value - filling with white pixels
 # Labels to perform no flip: iv, vi, vii, viii
 transform_no_flip = iaa.Sequential([iaa.Resize({"height": resize_dim, "width": resize_dim}),
                                     iaa.Crop(percent=(0, 0.05)),

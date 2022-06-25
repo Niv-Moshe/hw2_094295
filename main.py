@@ -15,8 +15,8 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
-# import seaborn as sn
-import pandas as pd
+import seaborn as sn
+import matplotlib.pyplot as plt
 from transformations import transform_no_flip, transform_horizontal, transform_vertical, transform_horizontal_vertical
 # Set seed
 ia.seed(1)
@@ -62,8 +62,7 @@ def exploration():
                 print('Skipped .DS_Store file')
                 continue
             path = os.path.join(TRAIN_PATH, folder, filename)
-            image = Image.open(path)
-            image = ImageOps.grayscale(image)
+            image = ImageOps.grayscale(Image.open(path))
             all_dimensions.append(np.asarray(image).shape)
     print(f'Dimensions count: {Counter(all_dimensions).most_common()}')
     print()
@@ -155,10 +154,10 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
     # all clean images paths from temp folder
     clean_images = glob(os.path.join(temp_folder, "*.png"))
     print(f'Images to generate {images_to_generate_count}')
+    indexes = list(range(len(clean_images)))
     for i in range(images_to_generate_count):
-        index = random.choice(range(len(clean_images)))
-        image = Image.open(clean_images[index])
-        image = ImageOps.grayscale(image)
+        index = random.choice(indexes)
+        image = ImageOps.grayscale(Image.open(clean_images[index]))
         # transforming
         image_transformed = transformation(images=np.asarray(image))
         image_transformed = Image.fromarray(image_transformed)
@@ -180,7 +179,6 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
 
 def make_confusion_matrix():
     val_dir = os.path.join("data", "val")
-    BATCH_SIZE = 16
     # Resize the samples and transform them into tensors
     data_transforms = transforms.Compose([transforms.Resize([64, 64]), transforms.ToTensor()])
     val_dataset = datasets.ImageFolder(val_dir, data_transforms)
@@ -213,21 +211,20 @@ def make_confusion_matrix():
             # statistics
             running_loss += loss.item() * inputs.size(0)
             running_corrects += torch.sum(preds == labels.data)
-        # # Build confusion matrix
-        # cf_matrix = confusion_matrix(y_true, y_pred)
-        # df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in classes],
-        #                      columns=[i for i in classes])
-        # plt.figure(figsize=(12, 7))
-        # sn.heatmap(df_cm, annot=True)
-        # plt.savefig('output.png')
+        # Build confusion matrix
+        cf_matrix = confusion_matrix(labels.data.detach().cpu(), preds.detach().cpu())
+        df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in class_names],
+                             columns=[i for i in class_names])
+
+        plt.figure(figsize=(12, 7))
+        sn.heatmap(df_cm, annot=True)
+        plt.savefig('confusion_matrix.png')
     epoch_loss = running_loss / len_val
     epoch_acc = running_corrects.double() / len_val
     print(f'Val acc: {epoch_acc}, Val loss: {epoch_loss}')
-    pass
 
 
-if __name__ == "__main__":
-    # make_confusion_matrix()
+def main():
     # Exploration
     exploration()
     # Pre-processing
@@ -255,3 +252,7 @@ if __name__ == "__main__":
         if label in labels_horizontal_vertical:
             augmentation_and_split(label=label, transformation=transform_horizontal_vertical)
 
+
+if __name__ == "__main__":
+    main()
+    # make_confusion_matrix()
