@@ -165,7 +165,7 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
 
     # splitting to train and val
     print(f'Total images {len(os.listdir(temp_folder))}')
-    train, val = train_test_split(os.listdir(temp_folder), random_state=1, shuffle=True, train_size=train_size)
+    train, val = train_test_split(os.listdir(temp_folder), shuffle=True, train_size=train_size)
     # copying to train and val before deleting temp_folder
     for train_file_path in train:
         shutil.copy(os.path.join(temp_folder, train_file_path), augmented_label_folder_train)
@@ -177,8 +177,8 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
     print()
 
 
-def make_confusion_matrix():
-    val_dir = os.path.join("data", "val")
+def make_confusion_matrix(title):
+    val_dir = os.path.join("data1", "val")
     # Resize the samples and transform them into tensors
     data_transforms = transforms.Compose([transforms.Resize([64, 64]), transforms.ToTensor()])
     val_dataset = datasets.ImageFolder(val_dir, data_transforms)
@@ -217,6 +217,7 @@ def make_confusion_matrix():
         df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix) * 10, index=[i for i in class_names],
                              columns=[i for i in class_names])
         plt.figure(figsize=(12, 7))
+        plt.suptitle(t=f'Confusion Matrix - {title}', fontsize=18)
         sn.heatmap(df_cm, annot=True)
         plt.savefig('confusion_matrix.png')
 
@@ -256,4 +257,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # make_confusion_matrix()
+    # make_confusion_matrix('Our Approach')
+    # make_confusion_matrix('Baseline')
