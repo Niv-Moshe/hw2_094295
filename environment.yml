@@ -1,4 +1,4 @@
-name: hw_094295_env
+name: hw2_env
 channels:
   - pytorch
   - anaconda
