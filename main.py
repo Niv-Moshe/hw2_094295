@@ -178,7 +178,7 @@ def augmentation_and_split(label, transformation, max_size=1000, train_size=800)
 
 
 def make_confusion_matrix(title):
-    val_dir = os.path.join("data1", "val")
+    val_dir = os.path.join("data", "val")
     # Resize the samples and transform them into tensors
     data_transforms = transforms.Compose([transforms.Resize([64, 64]), transforms.ToTensor()])
     val_dataset = datasets.ImageFolder(val_dir, data_transforms)
